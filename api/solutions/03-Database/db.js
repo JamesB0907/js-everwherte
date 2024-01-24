@@ -22,7 +22,7 @@ module.exports = {
       process.exit();
     });
   },
-
+  
   close: () => {
     mongoose.connection.close();
   }

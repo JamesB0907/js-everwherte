@@ -1,10 +1,13 @@
 //Requiring Express dependancy
 const express = require('express');
-//Creating an app object
-const app = express();
+const { ApolloServer, gql} = require('apollo-server-express');
+require('dotenv').config();
+
+const db = require('./db');
+
 //Create a port object that allows us to change the port number dynamically OR the port defaults to 4000
 const port = process.env.PORT || 4000;
-
+const DB_HOST = process.env.DB_HOST;
 let notes = [
     {
       id: '1',
@@ -23,46 +26,48 @@ let notes = [
     }
   ];
 
-const { ApolloServer, gql} = require('apollo-server-express');
-
 //Construct a schema, using GraphQL schema language (gql)
-const typeDefs = gql`
-    type Note {
-        id: ID!
-        content: String!
-        author: String!
-    }
-    type Query {
-        hello: String!
-        notes: [Note!]!
-        note(id: ID!): Note!
-    }
-    type Mutation {
-        newNote(content: String!): Note!
-    }
-`;
+  const typeDefs = gql`
+      type Note {
+          id: ID!
+          content: String!
+          author: String!
+      }
+      type Query {
+          hello: String!
+          notes: [Note!]!
+          note(id: ID!): Note!
+      }
+      type Mutation {
+          newNote(content: String!): Note!
+      }
+  `;
+  
+  //Provide resolver functions for our schema fields
+  const resolvers = {
+      Query: {
+          hello: () => 'Hello World!',
+          notes: () => notes,
+          note: (parent, args) => {
+              return notes.find(note => note.id === args.id);
+              }
+          },
+      Mutation: {
+          newNote: (parent, args) => {
+              let noteValue = {
+                  id: String(notes.length + 1),
+                  content:args.content,
+                  author: 'Adam Scott'
+                  };
+              notes.push(noteValue);
+              return noteValue;
+          }
+      }
+  };
+  db.connect(DB_HOST);
 
-//Provide resolver functions for our schema fields
-const resolvers = {
-    Query: {
-        hello: () => 'Hello World!',
-        notes: () => notes,
-        note: (parent, args) => {
-            return notes.find(note => note.id === args.id);
-            }
-        },
-    Mutation: {
-        newNote: (parent, args) => {
-            let noteValue = {
-                id: String(notes.length + 1),
-                content:args.content,
-                author: 'Adam Scott'
-                };
-            notes.push(noteValue);
-            return noteValue;
-        }
-    }
-};
+//Creating an app object
+const app = express();
 
 //Apollo Server setup
 const server = new ApolloServer({ typeDefs, resolvers });
