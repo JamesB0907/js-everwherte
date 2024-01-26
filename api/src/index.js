@@ -1,82 +1,35 @@
 //Requiring Express dependancy
 const express = require('express');
-const { ApolloServer, gql} = require('apollo-server-express');
+const { ApolloServer } = require('apollo-server-express');
 require('dotenv').config();
 
 const db = require('./db');
 
-//Create a port object that allows us to change the port number dynamically OR the port defaults to 4000
+//Local Module imports
+const models = require('./models');
+const typeDefs = require('./schema');
+const resolvers = require('./resolvers')
+
+//Run our server on a port specified in our .env file or port 4000
 const port = process.env.PORT || 4000;
 const DB_HOST = process.env.DB_HOST;
-let notes = [
-    {
-      id: '1',
-      content: 'This is a note',
-      author: 'Adam Scott'
-    },
-    {
-      id: '2',
-      content: 'This is another note',
-      author: 'Harlow Everly'
-    },
-    {
-      id: '3',
-      content: 'Oh hey look, another note!',
-      author: 'Riley Harrison'
-    }
-  ];
 
-//Construct a schema, using GraphQL schema language (gql)
-  const typeDefs = gql`
-      type Note {
-          id: ID!
-          content: String!
-          author: String!
-      }
-      type Query {
-          hello: String!
-          notes: [Note!]!
-          note(id: ID!): Note!
-      }
-      type Mutation {
-          newNote(content: String!): Note!
-      }
-  `;
-  
-  //Provide resolver functions for our schema fields
-  const resolvers = {
-      Query: {
-          hello: () => 'Hello World!',
-          notes: () => notes,
-          note: (parent, args) => {
-              return notes.find(note => note.id === args.id);
-              }
-          },
-      Mutation: {
-          newNote: (parent, args) => {
-              let noteValue = {
-                  id: String(notes.length + 1),
-                  content:args.content,
-                  author: 'Adam Scott'
-                  };
-              notes.push(noteValue);
-              return noteValue;
-          }
-      }
-  };
-  db.connect(DB_HOST);
-
-//Creating an app object
 const app = express();
 
+db.connect(DB_HOST);
+
 //Apollo Server setup
-const server = new ApolloServer({ typeDefs, resolvers });
+const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context: () => {
+        //Add the db models to the context
+        return { models };
+    }
+ });
 
 //Apply the Apolla GraphQL middleware and set the path to /api
-server.applyMiddleware({ app, path: '/api'})
-
-//Using app object's get method to instruct our application to send "Hello World" when user accesses root "/"
-app.get('/', (req, res) => res.send('Hello Web Server!!!'));
+server.applyMiddleware({ app, path: '/api'});
 
 //Instructing app to run on localhost:4000
 app.listen({ port }, () => 
